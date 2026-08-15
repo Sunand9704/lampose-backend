@@ -1,0 +1,57 @@
+# systemd unit for the Lampose main backend.
+#
+#   sudo cp deploy/lampose-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now lampose-api
+#   sudo journalctl -u lampose-api -f
+#
+# Environment comes from .env in WorkingDirectory, read by dotenv inside the
+# app. That is deliberate: systemd's own EnvironmentFile parser has different
+# quoting rules from dotenv, and a MONGO_URI containing & or # is exactly the
+# kind of value the two disagree about.
+
+[Unit]
+Description=Lampose Main Backend API
+Documentation=https://github.com/your-org/main-backend
+# network-online, not just network: the app resolves an Atlas SRV record at
+# boot, which fails if DNS is not up yet.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lampose
+Group=lampose
+WorkingDirectory=/srv/lampose-api
+ExecStart=/usr/bin/node src/server.js
+
+Restart=always
+RestartSec=5s
+# Stop restarting if it crash-loops — a bad .env should be visible in the
+# status, not hidden behind an endless restart.
+StartLimitBurst=5
+StartLimitIntervalSec=120
+
+# The app closes the listener, finishes in-flight requests and disconnects
+# from MongoDB on SIGTERM. Give it room to do that before SIGKILL.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lampose-api
+
+# Hardening. Playwright needs to write its browser cache and /tmp, so this is
+# deliberately not a full lockdown.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/lampose-api
+
+# A scrape holds a headless Chromium. On a 2 GB box this keeps a runaway job
+# from taking the whole VPS down with it; raise it if scrapes get OOM-killed.
+MemoryMax=1500M
+
+[Install]
+WantedBy=multi-user.target

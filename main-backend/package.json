@@ -1,0 +1,43 @@
+{
+  "name": "main-backend",
+  "version": "1.0.0",
+  "description": "Unified backend for the Lampose site and the Scriper leads/onboarding panel",
+  "main": "src/server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "browsers": "playwright install --with-deps chromium",
+    "export:listings": "node scripts/export-listings.mjs",
+    "export:listings:clean": "node scripts/export-listings.mjs --clean",
+    "inspect:db": "node scripts/inspect-db.mjs",
+    "inspect:properties": "node scripts/inspect-properties.mjs",
+    "migrate:json": "node scripts/migrate-json-store.mjs",
+    "smoke": "node scripts/smoke-test.mjs",
+    "verify": "node scripts/verify-frontends.mjs"
+  },
+  "keywords": [
+    "express",
+    "mongodb",
+    "mongoose",
+    "lampose",
+    "scriper"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.2",
+    "playwright": "^1.62.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
