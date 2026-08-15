@@ -23,7 +23,7 @@ Type=simple
 User=lampose
 Group=lampose
 WorkingDirectory=/srv/lampose-api
-ExecStart=/usr/bin/node src/server.js
+ExecStart=/usr/bin/node server.js
 
 Restart=always
 RestartSec=5s

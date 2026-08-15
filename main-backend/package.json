@@ -1,43 +1,43 @@
 {
-  "name": "main-backend",
-  "version": "1.0.0",
-  "description": "Unified backend for the Lampose site and the Scriper leads/onboarding panel",
-  "main": "src/server.js",
-  "type": "module",
+  "name": "lampose-main-backend",
+  "version": "2.0.0",
+  "description": "Unified Lampose backend — onboarding (v1) and the public site + leads panel (v2)",
+  "main": "server.js",
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=18.0.0"
   },
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "browsers": "playwright install --with-deps chromium",
-    "export:listings": "node scripts/export-listings.mjs",
-    "export:listings:clean": "node scripts/export-listings.mjs --clean",
-    "inspect:db": "node scripts/inspect-db.mjs",
-    "inspect:properties": "node scripts/inspect-properties.mjs",
-    "migrate:json": "node scripts/migrate-json-store.mjs",
-    "smoke": "node scripts/smoke-test.mjs",
-    "verify": "node scripts/verify-frontends.mjs"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed:admins": "node seedAdmins.js",
+    "inspect:collections": "node inspectCollections.js",
+    "inspect:db": "node scripts/inspect-db.js",
+    "inspect:properties": "node scripts/inspect-properties.js",
+    "export:listings": "node scripts/export-listings.js",
+    "export:listings:clean": "node scripts/export-listings.js --clean",
+    "migrate:json": "node scripts/migrate-json-store.js",
+    "smoke": "node scripts/smoke-test.js",
+    "verify": "node scripts/verify-frontends.js",
+    "browsers": "playwright install --with-deps chromium"
   },
   "keywords": [
     "express",
     "mongodb",
     "mongoose",
     "lampose",
-    "scriper"
+    "onboarding",
+    "leads"
   ],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
+    "cloudinary": "^2.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.9.2",
-    "playwright": "^1.62.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
+    "mongoose": "^8.4.1",
+    "multer": "^2.2.0",
+    "playwright": "^1.62.1",
+    "twilio": "^6.1.0"
   }
 }
