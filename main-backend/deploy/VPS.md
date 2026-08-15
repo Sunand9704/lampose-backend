@@ -10,10 +10,11 @@ Ubuntu 22.04/24.04. Substitute your own paths and domain.
    `Server selection timed out`. Add the VPS's public IP in
    Atlas → Network Access → Add IP Address **before** you deploy. This is the
    single most likely reason a first deploy looks broken.
-2. **Your secrets are still the example values.** `JWT_SECRET` is 28 characters
-   and `ADMIN_SECRET_KEY` is `admin_secret_123`, which is in `.env.example` and
-   therefore in the repo. Anyone who reads it can register themselves as an
-   administrator. Generate real ones (step 4).
+2. **Check your secrets before you ship them.** `.env.example` is in the repo,
+   so anything still set to its example value is public knowledge — and
+   `ADMIN_SECRET_KEY` is what stops a stranger registering themselves as an
+   administrator. The current `JWT_SECRET` is also under the 32 characters the
+   server warns about in production. Generate real ones (step 4).
 3. **Playwright needs system libraries and RAM.** Chromium pulls ~50 apt
    packages and uses roughly 1 GB while a scrape runs. On a 1 GB VPS the scrape
    will be OOM-killed. 2 GB is the practical minimum; the systemd unit caps the
@@ -25,8 +26,9 @@ Ubuntu 22.04/24.04. Substitute your own paths and domain.
 
 ## 1. Node
 
-The app requires Node ≥ 20.19 (`engines` in package.json). Ubuntu's default is
-older, so use NodeSource:
+The app requires Node ≥ 18 (`engines` in package.json), but Playwright's
+Chromium and `node --watch` are happier on 22. Ubuntu's default is older, so
+use NodeSource:
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
@@ -54,12 +56,13 @@ sudo -u lampose npm ci --omit=dev
 
 # Chromium for the scraper. --with-deps installs the apt packages, so this
 # one needs root. Skip it if you do not want scraping on this box: the API
-# still runs and only /api/scraper/start answers 503.
+# still runs and only /api/v2/scraper/start answers 503.
 sudo npx playwright install --with-deps chromium
 ```
 
-`npm ci --omit=dev` skips nodemon. Everything else — express, mongoose,
-bcryptjs, jsonwebtoken, playwright — is a runtime dependency.
+Everything the app needs at runtime is a plain dependency — express, mongoose,
+bcryptjs, jsonwebtoken, multer, cloudinary, twilio, playwright — so
+`npm ci --omit=dev` installs the lot.
 
 ## 4. Environment
 
@@ -73,7 +76,7 @@ Minimum for production:
 
 ```ini
 NODE_ENV=production
-PORT=5000
+PORT=5001
 MONGO_URI=mongodb+srv://user:pass@cluster0.xxxx.mongodb.net/lamp_onboarding?retryWrites=true&w=majority
 JWT_SECRET=<64 hex chars — see below>
 ADMIN_SECRET_KEY=<something only you know>
@@ -83,9 +86,13 @@ ADMIN_SECRET_KEY=<something only you know>
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-The server **refuses to start** in production if either secret is missing or
-still the example value. That is intentional — a forgeable token is worse than
-an outage, and an outage gets fixed.
+The server **starts anyway** if either secret is missing, but disables what
+they protect: `/api/v2/auth` and `/api/v2/users` answer
+`503 AUTH_NOT_CONFIGURED`, so no forgeable token is ever issued. It used to
+exit instead. It cannot now — one process serves all three frontends, and
+killing it over the leads panel's login would take lampose.com and
+onboard.lampose.com down with it. Read the `[config]` lines at the top of the
+boot log; they name every fault in one pass.
 
 You do not need `ALLOWED_ORIGINS`: lampose.com, www, leads, onboard and every
 `*.lampose.com` host are built in.
@@ -100,7 +107,10 @@ sudo systemctl status lampose-api
 sudo journalctl -u lampose-api -f
 ```
 
-A healthy boot logs `[db] connected — lamp_onboarding` and prints the banner.
+A healthy boot logs `✅ [MongoDB Connected]` and prints the banner, which lists
+both API versions, every mounted route and the CORS allowlist. Every API call
+after that gets one line — see the "Every API call is logged" section of the
+README.
 
 ## 6. Import the old leads
 
@@ -118,7 +128,7 @@ If you skip this, the panel has no accounts and nobody can log in. Create the
 first administrator instead:
 
 ```bash
-curl -X POST http://127.0.0.1:5000/api/auth/register \
+curl -X POST http://127.0.0.1:5001/api/v2/auth/register \
   -H "Content-Type: application/json" \
   -d '{"name":"Admin","email":"you@lampose.in","password":"<pw>","role":"ADMIN","adminCode":"<ADMIN_SECRET_KEY>"}'
 ```
@@ -139,7 +149,7 @@ reject a response carrying two `Access-Control-Allow-Origin` headers.
 
 ## 8. Firewall
 
-Only 80/443 should be public. Node stays on 127.0.0.1:5000 behind nginx.
+Only 80/443 should be public. Node stays on 127.0.0.1:5001 behind nginx.
 
 ```bash
 sudo ufw allow OpenSSH
@@ -151,8 +161,8 @@ sudo ufw enable
 
 ```bash
 cd /srv/lampose-api
-SMOKE_URL=https://api.lampose.com npm run smoke      # 18 route + CORS checks
-SMOKE_URL=https://api.lampose.com npm run verify     # 32 frontend calls
+SMOKE_URL=https://api.lampose.com npm run smoke      # 25 route + CORS checks
+SMOKE_URL=https://api.lampose.com npm run verify     # 78 API calls
 ```
 
 Both exit non-zero on failure, so they can gate the switch.
@@ -160,9 +170,16 @@ Both exit non-zero on failure, so they can gate the switch.
 ## 10. Repoint the frontends
 
 ```
-lampose-frontend/.env    VITE_API_BASE_URL=https://api.lampose.com/api
-scriper-frontend/.env    VITE_API_URL=https://api.lampose.com/api
+lampose-frontend/.env     VITE_API_BASE_URL=https://api.lampose.com/api/v2
+leads-frontend/.env       VITE_API_URL=https://api.lampose.com/api/v2
+onboards-frontend/.env    VITE_API_URL=https://api.lampose.com/api/v1/properties
+                          VITE_AUTH_API_URL=https://api.lampose.com/api/v2/auth/onboarding-login
 ```
+
+The `/v2` on the leads panel is not cosmetic. Unversioned `/api/properties` is
+the onboarding app's endpoint, where a POST sends the owner a WhatsApp
+verification instead of creating the listing. Point the leads panel at plain
+`/api` and its "Add Property" button silently starts messaging owners.
 
 Vite bakes these in **at build time**, not at runtime. Changing the value
 requires a rebuild and redeploy of the frontend — restarting it is not enough,

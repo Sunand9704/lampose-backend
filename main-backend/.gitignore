@@ -1,24 +1,8 @@
-# dependencies
+# Backend Node dependencies
 node_modules/
 
-# environment variables
+# Secrets
 .env
-.env.local
-.env.production
-.env.development
 
-# local JSON store (development fallback for the scriper data)
-data/
-
-# logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-logs/
+# Logs
 *.log
-
-# OS & editor files
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
